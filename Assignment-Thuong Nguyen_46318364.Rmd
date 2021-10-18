@@ -1,0 +1,321 @@
+---
+title: "STAT2170 Assignment 2 _ 46318364"
+author: "Thuong Nguyen"
+output: pdf_document
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+```{r}
+paramo <- read.table("paramo.dat", header = TRUE) ##Load dataset
+```
+
+### a.
+```{r}
+pairs(paramo, panel = panel.smooth)
+```
+```{r}
+cor(paramo)
+```
+The scatterplot and correlation matrix show there is a moderately strong relationship between N and DEc. AR is slightly correlated with EL and N. There seems to be no discernible relationship either between DNI and other predictors or between DNI and the response.
+
+### b.
+- **Multiple regression model**:
+
+   $N = \beta_0 + \beta_{AR}X_{AR} + \beta_{EL}X_{EL} + \beta_{DEc}X_{DEc} + \beta_{DNI}X_{DNI} + \epsilon$ ; $\epsilon \sim \mathcal{N}(0,\sigma^2)$
+
+  in which:
+    
+  + $X_i$ : predictors
+
+  + $\beta_0$ : Intercept
+  
+  + $\beta_{AR}$,...,$\beta_{DNI}$ : regression coefficients
+   
+  + $\epsilon$ : variation away from the line
+
+- **Hypotheses**:
+
+   $H_0 : \beta_1 = \beta_2 = ... = \beta_k = 0$
+   
+   $H_1 : \beta_i \neq 0$ for at least one *i*
+
+- **ANOVA Table for overall multiple regression model**:
+
+```{r}
+paramo.lm.1 = lm(N ~ AR + EL + DEc + DNI, data = paramo)
+paramo.aov.1 = anova(paramo.lm.1)
+paramo.aov.1
+```
+
+- **Test statistic**:
+
+From the ANOVA table, we can calculate the following values:
+
+   + Full Regression SS:
+```{r}
+FullRegSS = sum(508.92, 45.90, 537.39, 2.06)
+FullRegSS
+```
+   + Regression MS:
+```{r}
+k = 4
+RegMS = FullRegSS/k
+RegMS
+```
+   + Test statistics
+```{r}
+ResMS = 44.95
+F_obs = RegMS/ResMS
+F_obs
+```
+
+- **Null distribution**: The null distribution should follow F-distribution
+           
+- **P-Value**:
+
+```{r}
+df1 = 4
+df2 = 9 #Residual Df
+pf(F_obs, df1, df2, lower.tail = FALSE)
+```
+
+  Therefore, we have $P(F_{4,9} \ge 6.09) = 0.0118$ < 0.05
+  
+- **Conclusion**:
+
+  + Reject $H_0$ at the 5% level.
+  
+  + There a significant linear relationship between the response and at least one of the four predictor variables.
+
+### c.
+```{r}
+par(mfrow = c(1,2))
+plot(paramo.lm.1, which = 1:2)
+```
+```{r}
+par(mfrow = c(2,2))
+plot(resid(paramo.lm.1) ~ AR + EL + DEc + DNI, data = paramo)
+```
+The Normal Q-Q plot shows a slight curvature but still close to linear, implying errors close to normally distributed. Generally, there is no discernible pattern in the Residuals vs Fitted plot and the Residuals vs predictor plot. Therefore, in this case, it is relatively reasonable to use multiple regression model to explain the N abundance value.
+
+### d.
+- Compute Total SS: 
+```{r}
+ResSS = 404.59 #From ANOVA table
+TotalSS = FullRegSS + ResSS
+TotalSS
+```
+- Compute $R^2$:
+```{r}
+R_squared = FullRegSS/TotalSS
+R_squared
+```
+- **Conclusion**: This means 73% of variation in N can be explained by the linear regression of N on AR, EL, DEc and DNI.
+
+### e.
+
+Stepwise backward estimation requires dropping the variable with the largest p-value. Accordingly, in this case, we will drop the variable DNI for a better model since $Pvalue_{DNI} = 0.835412 > 0.05$
+
+- **Remove DNI**
+```{r}
+paramo.lm.2 = lm(N ~ AR + EL + DEc, data = paramo)
+summary(paramo.lm.2)
+```
+  EL is the most insignificant variable ($Pvalue_{EL} = 0.441977 > 0.05$), so we remove EL from the model.
+
+- **Remove EL**
+```{r}
+paramo.lm.3 = lm(N ~ AR + DEc, data = paramo)
+summary(paramo.lm.3)
+```
+  All variables are now significant.
+
+- **Validate model**
+```{r}
+par(mfrow = c(1,2))
+plot(paramo.lm.1, which = 1:2)
+```
+```{r}
+par(mfrow = c(1,2))
+plot(resid(paramo.lm.3) ~ AR + DEc, data = paramo)
+```
+The quantile plot looks relatively linear and the residual plots have no obvious pattern, suggesting linear model still adequate.
+
+- **Final fitted regression model**:
+  $N = \beta_0 + \beta_{AR}X_{AR} + \beta_{DEc}X_{DEc} + \epsilon$ ; $\epsilon \sim \mathcal{N}(0,\sigma^2)$
+  
+### f.
+```{r}
+summary(paramo.lm.1)
+```
+   - $R^2$ in the full model: 0.7301
+   
+   - Adjusted $R^2$ in the full model: 0.6101
+
+```{r}
+summary(paramo.lm.3)
+```
+   - $R^2$ in the fitted model: 0.7113
+   
+   - Adjusted $R^2$ in the fitted model: 0.6588
+   
+   Accordingly, $R^2$ loses only about 2% while Adjusted $R^2$ increases about 5%. These different changes occur due to the decrease in the number of predictors.
+
+- Having fewer predictors will always decrease $R^2$, even if the predictor is insignificant.
+
+- On the other hand, we have the equation for adjusted $R^2$ as following:
+   
+   Adjusted $R^2$ = $R^2 - (1 - R^2)\frac{p-1}{n-p}$
+   
+   (with p as the number of predictors)
+   
+  As such, when the number of predictors decrease, $p-1$ will decrease and $n-p$ will increase, making the fraction decrease. This eventually leads to the increase of Adjusted $R^2$ as observed.
+  
+  
+### g.
+```{r}
+summary(paramo.lm.3)
+```
+From the output, the terms of interest are:
+
+  - $b_{AR}$ = 6.6830
+  
+  - $s.e.(b_{AR})$ = 2.2644
+  
+  - The Residual/Error df = n - p = 11 (with n = number of observations; p = number of parameters)
+
+Accordingly, the quantile:
+
+```{r}
+t_quant = qt(1-0.05/2, 11)
+t_quant
+```
+
+95% Confidence Interval for $\beta_{AR}$:
+
+   $b_{AR} \pm t_{n-p, 1-\alpha/2} = 6.6830 \pm 2.2001 \times 2.2644 = 6.6830 \pm 4.9819 = (1.7011, 11.6649)$
+   
+**Conclusion**: For a unit increase in the area of the island, we have 95% confidence that the expected change in the number of species of bird present to be in the range of (1.7011, 11.6649)
+
+##Question 2
+```{r}
+TreeShrews = read.table("TreeShrews.dat", header = TRUE)
+```
+
+### a.
+
+```{r}
+table(TreeShrews[,c("Sleep", "Shrews")])
+```
+
+This is a balanced study because each treatment combination between Sleep and Shrews has the same number of replicates, which is 1.
+
+### b.
+```{r}
+interaction.plot(TreeShrews$Shrews, TreeShrews$Sleep, TreeShrews$HeartRates, trace.label = "Stages of Sleep", xlab = "Shrews", ylab = "Heart Rates", col = 1:3)
+```
+The interaction plot shows there is interaction between different stages of sleep and different tree shrews as the lines are not parallel. In other words, the effect on heart rates changes depending on a combination of levels of Shrews and Stages of Sleep.
+
+```{r}
+boxplot(HeartRates ~ factor(Shrews):Sleep, data = TreeShrews)
+```
+The boxplot is not very informative since we only have 1 observation for each treatment combination. Therefore, the plot just shows 18 medians for 18 observations.
+
+### c.
+
+- **Mathematical model**
+
+   $Y_{ijk} = \mu + \alpha_i + \beta_j + \gamma_{ij} + \epsilon_{ijk} ; \epsilon_{ijk} \sim \mathcal{N}(0,\sigma^2)$
+   
+   in which:
+     
+   + $Y_{ijk}$: $k^{th}$ replicate of the treatment at $i^{th}$ level in factor
+A and $j^{th}$ level in factor B
+
+   + $\mu$ = overall population mean
+   
+   + $\alpha_i$ =  base effect of $i^{th}$ level of Factor A; $i$ = 1, 2,..., a
+   
+   + $\beta_j$ = base effect of $j^{th}$ level of Factor B; j = 1, 2,..., b
+   
+   + $\gamma_{ij}$ = effect of the combined effect of the $i^{th}$, $j^{th}$ combination of the two factors
+   
+   + $\epsilon_{ijk}$ = unexplained variation for each replicated observation
+   
+- **Hypothesis about the interaction term**:
+
+  $H_0: \gamma_{ij} = 0$
+  
+  $H_1$: not all $\gamma_{ij} = 0$
+
+- **Two-way ANOVA analysis**:
+
+```{r}
+TreeShrews.lm = lm(HeartRates ~ Sleep*factor(Shrews), data = TreeShrews)
+TreeShrews.aov = anova(TreeShrews.lm)
+TreeShrews.aov
+```
+We cannot fit the Two-Way ANOVA with interaction model to this data set because from the ANOVA table above, the Residual SS, which measures the amount of variance in a data set that is not explained by a regression model itself, is equal to 0, which means there is no randomness in the error.
+
+###d.
+
+Since the interaction term is insignificant, we fit the model with only the main effects.
+
+- **Mathematical model**
+
+   $Y_{ijk} = \mu + \alpha_i + \beta_j + \epsilon_{ijk} ; \epsilon_{ijk} \sim \mathcal{N}(0,\sigma^2)$
+
+  in which:
+  
+   + $Y_{ijk}$: $k^{th}$ replicate of the treatment at $i^{th}$ level in factor
+A and $j^{th}$ level in factor B
+
+   + $\mu$ = overall population mean
+   
+   + $\alpha_i$ =  base effect of $i^{th}$ level of Factor A; $i$ = 1, 2,..., a
+   
+   + $\beta_j$ = base effect of $j^{th}$ level of Factor B; j = 1, 2,..., b
+   
+   + $\epsilon_{ijk}$ = unexplained variation for each replicated observation
+
+- **Hypotheses**:
+
+  + Main effect: Shrews:
+  
+    $H_0: \alpha_i = 0$ against $H_1$: not all $\alpha_i = 0$
+    
+  + Main effect: Stages of Sleep:
+    
+    $H_0: \beta_j = 0$ against $H_1$: not all $\beta_j = 0$
+    
+- **ANOVA table**:
+
+```{r}
+TreeShrews.lm.new = lm(HeartRates ~ Sleep + Shrews, data = TreeShrews)
+TreeShrews.aov.2 = anova(TreeShrews.lm.new)
+TreeShrews.aov.2
+```
+- **Model validation**:
+
+```{r}
+par(mfrow = c(1,2))
+plot(TreeShrews.lm.new, which = 1:2)
+```
+```{r}
+hist(TreeShrews.lm.new$residuals)
+```
+
+###e.
+
+**Conclusion**:
+
+  + Main effect: Stages of Sleep: $Pvalue_{Sleep} = 0.56051 > 0.05$ so this Factor is insignificant
+
+  + Main effect: Shrews: $Pvalue_{Shrews} = 0.09432 > 0.05$ so this Factor is insignificant
